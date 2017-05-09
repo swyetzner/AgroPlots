@@ -3,7 +3,6 @@ import sys
 
 # class for each agricultural plot
 class PixelBlock:
-	pixels = []
 
 	def __init__(self, ul_corner, br_corner, image):
 		self.ul = ul_corner
@@ -12,6 +11,7 @@ class PixelBlock:
 		self.width = self.br[0] - self.ul[0]
 		self.ur = (self.ul[0] + self.width, self.ul[1])
 		self.bl = (self.br[0] - self.width, self.br[1])
+		self.pixels = []
 		# transfer pixel indices
 		for i in xrange(self.ul[0], self.ur[0]):
 			for j in xrange(self.ul[1], self.bl[1]):
@@ -19,23 +19,45 @@ class PixelBlock:
 
 	# returns average color of pixel block	
 	def getAvgColor(self):
-		totalRGBA = [0,0,0,0]
+		totalRGBA = [0,0,0]
 		for i in xrange(self.width):
 			for j in xrange(self.height):
-				for k in xrange(4):
+				for k in xrange(3):
 					totalRGBA[k] += self.pixels[i*self.height + j][k]
-		return totalRGBA/(i*j)
+		for k in xrange(3):
+			totalRGBA[k] /= self.width*self.height
+		return totalRGBA
 
 	def setBlockColor(self, rgba):
 		for p in self.pixels:
 			self.pixels = rgba
 
+	def copyCorners(self, other):
+		self.ul = other.ul
+		self.ur = other.ur 
+		self.bl = other.bl 
+		self.br = other.br 
+
+	def swapCorners(self, other):
+		tul = self.ul
+		tur = self.ur
+		tbl = self.bl
+		tbr = self.br
+		self.ul = other.ul
+		self.ur = other.ur
+		self.br = other.br
+		self.bl = other.bl
+		other.ul = tul
+		other.ur = tur
+		other.br = tbr
+		other.bl = tbl
+
 
 # returns color difference between two rgba arrays
 def colorDiff(rgba1, rgba2):
 	totalDiff = 0
-	for i in xrange(4):
-		totalDiff += rgba1[i] - rgba2[i]
+	for i in xrange(3):
+		totalDiff += abs(rgba1[i] - rgba2[i])
 	return totalDiff
 
 def importImage(name):
@@ -77,24 +99,69 @@ def swapTiles(im, wp, hp, coord1, coord2, plots):
 			color2 = im.getpixel((i+plots[q].ul[0],j+plots[q].ul[1]))
 			im.putpixel((i+plots[p].ul[0],j+plots[p].ul[1]),color2)
 			im.putpixel((i+plots[q].ul[0],j+plots[q].ul[1]),color1)
+			# update plots list
+			plots[p].swapCorners(plots[q])
+			tmp = plots[p]
+			plots[p] = plots[q]
+			plots[q] = plots[p]
+
+
+
+
+def setTiles(im, wp, hp, newplots):
+	for i in xrange(len(newplots)):
+		j = 0
+		for ii in xrange(newplots[i].ul[0], newplots[i].ur[0]):
+			for jj in xrange(newplots[i].ul[1], newplots[i].bl[1]):
+				im.putpixel((ii, jj), newplots[i].pixels[j])
+				j += 1
+
+
+def matchImage(source, match, wp, hp, plots):
+	avgs = []
+	for p in plots:
+		avgs.append(p.getAvgColor())
+	matchplots = []
+	tile(match, wp, hp, matchplots)
+	newplots = []
+	used = []
+	for m in matchplots:
+		a = m.getAvgColor()
+		best = 100000
+		bestidx = 0
+		for b in xrange(len(avgs)):
+			test = colorDiff(avgs[b], a)
+			if best > test and b not in used:
+				best = test
+				bestidx = b
+		n = PixelBlock(plots[bestidx].ul,plots[bestidx].br,source)
+		newplots.append(n)
+		used.append(bestidx)
+		newplots[-1].copyCorners(plots[len(newplots)-1])
+	setTiles(source, wp, hp, newplots)
 
 
 # ------------- MAIN -----------------
-#image_name = sys.argv[1]
-#im = Image.open(image_name)
+image_name = sys.argv[1]
+im = Image.open(image_name)
 
 # get size of image
-#w = im.width
-#h = im.height
+w = im.width
+h = im.height
 # agricultural plots array
 agriPlots = []
 # x by x plots
-#wplots = int(sys.argv[2])
-#hplots = int(sys.argv[3])
+wplots = int(sys.argv[2])
+hplots = int(sys.argv[3])
 
-#tile(im, wplots, hplots, agriPlots)
+match_name = sys.argv[4]
+match = Image.open(match_name)
+match.resize((w,h))
+
+tile(im, wplots, hplots, agriPlots)
+matchImage(im, match, wplots, hplots, agriPlots)
 #showTiles(im, wplots, hplots, agriPlots)
-#im.show()
+im.show()
 
 
 
