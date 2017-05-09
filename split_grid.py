@@ -3,16 +3,18 @@ import sys
 
 # class for each agricultural plot
 class PixelBlock:
+	pixels = []
+
 	def __init__(self, ul_corner, br_corner, image):
 		self.ul = ul_corner
 		self.br = br_corner
 		self.height = self.br[1] - self.ul[1]
 		self.width = self.br[0] - self.ul[0]
-		self.ur = self.ul + width
-		self.bl = self.br - width
-		# tranfser pixels
-		for i in xrange(image.width):
-			for j in xrange(image.height):
+		self.ur = (self.ul[0] + self.width, self.ul[1])
+		self.bl = (self.br[0] - self.width, self.br[1])
+		# transfer pixel indices
+		for i in xrange(self.ul[0], self.ur[0]):
+			for j in xrange(self.ul[1], self.bl[1]):
 				self.pixels.append(image.getpixel((i,j)))
 
 	# returns average color of pixel block	
@@ -24,48 +26,54 @@ class PixelBlock:
 					totalRGBA[k] += self.pixels[i*self.height + j][k]
 		return totalRGBA/(i*j)
 
+	def setBlockColor(self, rgba):
+		for p in self.pixels:
+			self.pixels = rgba
+
+
+# class for system of agricultural plots
+class BlockSystem:
+	def __init__(self, width, height):
+		self.blocks = []
+		self.width = width
+		self.height = height
+
+
 # returns color difference between two rgba arrays
 def colorDiff(rgba1, rgba2):
 	totalDiff = 0
 	for i in xrange(4):
-		totalDiff += abs(rgba1[i] - rgba2[i])
+		totalDiff += rgba1[i] - rgba2[i]
 	return totalDiff
 
-# splitPlots()
+# tilePlots()
 # General: splits image into blocks of alike pixels
 # Details: finds one plot and uses the size to assume dimensions for 
 # the opthers because not every plot might have a large gradient with 
 # neighboring plot
 # Args: image, array of PixelBlocks
 #
-def splitPlots(image, plotArray):
-	upperLeftCorner = (-1,-1)
-	bottomRightCorner = (-1,-1)
+def tile(im, wp, hp, plots):
+	plotWidth = im.width/wp
+	plotHeight = im.height/hp
+	for ip in xrange(hp):
+		for jp in xrange(wp):
+			ul_corner = ((jp*plotWidth,ip*plotHeight))
+			block = PixelBlock(ul_corner, (ul_corner[0]+plotWidth,ul_corner[1]+plotHeight), im)
+			for ii in xrange(plotHeight):
+				for jj in xrange(plotWidth):
+					block.pixels.append(im.getpixel((jp*wp+jj,ip*hp+ii)))
+			plots.append(block)
 
-	for i in xrange(image.width-1):
-		for j in xrange(image.height-1):
-			# look for edge
-			curr_p = image.getpixel((i,j))
-			edgeDiff_w = colorDiff(curr_p, image.getpixel((i+1,j)))
-			edgeDiff_h = colorDiff(curr_p, image.getpixel((i,j+1)))
-			if edgeDiff_w > 50:
-				# look for upper left corner
-				for k in xrange(j,image.height-1):
-					edgeDiff_h1 = colorDiff(image.getpixel((i,k)), image.getpixel((i,k+1)))
-					if edgeDiff_h1 > 50:
-						upperLeftCorner = (i,k)
-				# look for bottom right
-				if upperLeftCorner[0] > -1:
-					# right edge
-					for k in xrange(i, image.width-1):
-						edgeDiff_w1 = colorDiff(image.getpixel((k,j)), image.getpixel((k+1,j)))
-						if edgeDiff_w1 > 50:
-							# bottom right corner
-							for l in xrange(j, image.height-1):
-								edgeDiff_h2 = colorDiff(image.getpixel((k,l)), image.getpixel((k,l+1)))
-								if edgeDiff_h2 > 50:
-									bottomRightCorner = (k,l)
-									return (upperLeftCorner,bottomRightCorner)
+
+def showTiles(im, wp, hp, plots):
+	white = (255, 255, 255, 255)
+	for i in xrange(len(plots)):
+		if i % 2 == 1:
+			for ii in xrange(plots[i].ul[0], plots[i].ur[0]):
+				for jj in xrange(plots[i].ul[1], plots[i].bl[1]):
+					im.putpixel((ii, jj), white)
+
 
 # ------------- MAIN -----------------
 image_name = sys.argv[1]
@@ -76,9 +84,13 @@ w = im.width
 h = im.height
 # agricultural plots array
 agriPlots = []
+# x by x plots
+wplots = int(sys.argv[2])
+hplots = int(sys.argv[3])
 
-
-print splitPlots(im, agriPlots)
+tile(im, wplots, hplots, agriPlots)
+showTiles(im, wplots, hplots, agriPlots)
+im.show()
 
 
 
