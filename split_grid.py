@@ -1,5 +1,6 @@
 from PIL import Image
 import sys
+import random
 
 # class for each agricultural plot
 class PixelBlock:
@@ -141,6 +142,17 @@ def matchImage(source, match, wp, hp, plots):
 	setTiles(source, wp, hp, newplots)
 
 
+def randomTiles(im, wp, hp, plots):
+	newplots = []
+	for p in plots:
+		r = random.random()
+		r = int(r*wp*hp)
+		n = PixelBlock(plots[r].ul, plots[r].br,im)
+		newplots.append(n)
+		newplots[-1].copyCorners(plots[len(newplots)-1])
+	setTiles(im, wp, hp, newplots)
+
+
 # ------------- MAIN -----------------
 image_name = sys.argv[1]
 im = Image.open(image_name)
@@ -158,11 +170,14 @@ match_name = sys.argv[4]
 match = Image.open(match_name)
 match.resize((w,h))
 
+save_name = sys.argv[5]
+
 tile(im, wplots, hplots, agriPlots)
 matchImage(im, match, wplots, hplots, agriPlots)
+#randomTiles(im, wplots, hplots, agriPlots)
 #showTiles(im, wplots, hplots, agriPlots)
 im.show()
-
+im.save(save_name)
 
 
 
